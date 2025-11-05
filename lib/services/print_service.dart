@@ -51,64 +51,28 @@ class PrintService {
               ),
               pw.SizedBox(height: 24),
 
-              // Store and Customer Info
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              // Store Info
+              pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  // Store Info
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      if (storeInfo['storeName'] != null && storeInfo['storeName']!.isNotEmpty)
-                        pw.Text(
-                          storeInfo['storeName']!,
-                          style: pw.TextStyle(
-                            fontSize: 16,
-                            fontWeight: pw.FontWeight.bold,
-                          ),
-                        ),
-                      if (storeInfo['storeName'] != null && storeInfo['storeName']!.isNotEmpty)
-                        pw.SizedBox(height: 4),
-                      if (storeInfo['addressLine1'] != null && storeInfo['addressLine1']!.isNotEmpty)
-                        pw.Text(storeInfo['addressLine1']!, style: const pw.TextStyle(fontSize: 10)),
-                      if (storeInfo['addressLine2'] != null && storeInfo['addressLine2']!.isNotEmpty)
-                        pw.Text(storeInfo['addressLine2']!, style: const pw.TextStyle(fontSize: 10)),
-                      if (storeInfo['phone'] != null && storeInfo['phone']!.isNotEmpty)
-                        pw.Text('Phone: ${storeInfo['phone']}', style: const pw.TextStyle(fontSize: 10)),
-                      if (storeInfo['gstin'] != null && storeInfo['gstin']!.isNotEmpty)
-                        pw.Text('GSTIN: ${storeInfo['gstin']}', style: const pw.TextStyle(fontSize: 10)),
-                    ],
-                  ),
-
-                  // Customer Info
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.end,
-                    children: [
-                      pw.Text(
-                        'Bill To:',
-                        style: pw.TextStyle(
-                          fontSize: 12,
-                          fontWeight: pw.FontWeight.bold,
-                        ),
+                  if (storeInfo['storeName'] != null && storeInfo['storeName']!.isNotEmpty)
+                    pw.Text(
+                      storeInfo['storeName']!,
+                      style: pw.TextStyle(
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
                       ),
-                      pw.SizedBox(height: 4),
-                      pw.Text(
-                        customer?.name ?? 'Walk-in Customer',
-                        style: const pw.TextStyle(fontSize: 12),
-                      ),
-                      if (customer?.phone != null)
-                        pw.Text(
-                          'Phone: ${customer!.phone}',
-                          style: const pw.TextStyle(fontSize: 10),
-                        ),
-                      if (customer?.taxId != null)
-                        pw.Text(
-                          'GSTIN: ${customer!.taxId}',
-                          style: const pw.TextStyle(fontSize: 10),
-                        ),
-                    ],
-                  ),
+                    ),
+                  if (storeInfo['storeName'] != null && storeInfo['storeName']!.isNotEmpty)
+                    pw.SizedBox(height: 4),
+                  if (storeInfo['addressLine1'] != null && storeInfo['addressLine1']!.isNotEmpty)
+                    pw.Text(storeInfo['addressLine1']!, style: const pw.TextStyle(fontSize: 10)),
+                  if (storeInfo['addressLine2'] != null && storeInfo['addressLine2']!.isNotEmpty)
+                    pw.Text(storeInfo['addressLine2']!, style: const pw.TextStyle(fontSize: 10)),
+                  if (storeInfo['phone'] != null && storeInfo['phone']!.isNotEmpty)
+                    pw.Text('Phone: ${storeInfo['phone']}', style: const pw.TextStyle(fontSize: 10)),
+                  if (storeInfo['gstin'] != null && storeInfo['gstin']!.isNotEmpty)
+                    pw.Text('GSTIN: ${storeInfo['gstin']}', style: const pw.TextStyle(fontSize: 10)),
                 ],
               ),
               pw.SizedBox(height: 24),
@@ -135,8 +99,8 @@ class PrintService {
                   return [
                     item.productName,
                     '${item.quantity}',
-                    '₹${item.unitPrice.toStringAsFixed(2)}',
-                    '₹${item.total.toStringAsFixed(2)}',
+                    'Rs.${item.unitPrice.toStringAsFixed(2)}',
+                    'Rs.${item.total.toStringAsFixed(2)}',
                   ];
                 }).toList() ?? [],
               ),
@@ -158,7 +122,7 @@ class PrintService {
                         pw.SizedBox(
                           width: 100,
                           child: pw.Text(
-                            '₹${sale.subtotal.toStringAsFixed(2)}',
+                            'Rs.${sale.subtotal.toStringAsFixed(2)}',
                             textAlign: pw.TextAlign.right,
                           ),
                         ),
@@ -176,29 +140,31 @@ class PrintService {
                           pw.SizedBox(
                             width: 100,
                             child: pw.Text(
-                              '-₹${sale.discount.toStringAsFixed(2)}',
+                              '-Rs.${sale.discount.toStringAsFixed(2)}',
                               textAlign: pw.TextAlign.right,
                             ),
                           ),
                         ],
                       ),
-                    pw.SizedBox(height: 4),
-                    pw.Row(
-                      mainAxisSize: pw.MainAxisSize.min,
-                      children: [
-                        pw.SizedBox(
-                          width: 150,
-                          child: pw.Text('Tax (GST):'),
-                        ),
-                        pw.SizedBox(
-                          width: 100,
-                          child: pw.Text(
-                            '₹${sale.tax.toStringAsFixed(2)}',
-                            textAlign: pw.TextAlign.right,
+                    if (gstEnabled)
+                      pw.SizedBox(height: 4),
+                    if (gstEnabled)
+                      pw.Row(
+                        mainAxisSize: pw.MainAxisSize.min,
+                        children: [
+                          pw.SizedBox(
+                            width: 150,
+                            child: pw.Text('Tax (GST):'),
                           ),
-                        ),
-                      ],
-                    ),
+                          pw.SizedBox(
+                            width: 100,
+                            child: pw.Text(
+                              'Rs.${sale.tax.toStringAsFixed(2)}',
+                              textAlign: pw.TextAlign.right,
+                            ),
+                          ),
+                        ],
+                      ),
                     pw.Divider(),
                     pw.Row(
                       mainAxisSize: pw.MainAxisSize.min,
@@ -216,7 +182,7 @@ class PrintService {
                         pw.SizedBox(
                           width: 100,
                           child: pw.Text(
-                            '₹${sale.total.toStringAsFixed(2)}',
+                            'Rs.${sale.total.toStringAsFixed(2)}',
                             textAlign: pw.TextAlign.right,
                             style: pw.TextStyle(
                               fontSize: 16,
@@ -285,6 +251,7 @@ class PrintService {
     List<int> bytes = [];
 
     final storeInfo = await _settingsService.getStoreInfo();
+    final gstEnabled = await _settingsService.isGSTEnabled();
 
     // Store name
     if (storeInfo['storeName'] != null && storeInfo['storeName']!.isNotEmpty) {
@@ -338,15 +305,6 @@ class PrintService {
     );
     bytes += generator.hr();
 
-    // Customer
-    bytes += generator.text(
-      'Customer: ${customer?.name ?? 'Walk-in Customer'}',
-    );
-    if (customer?.phone != null) {
-      bytes += generator.text('Phone: ${customer!.phone}');
-    }
-    bytes += generator.hr();
-
     // Items
     bytes += generator.row([
       PosColumn(text: 'Item', width: 6, styles: const PosStyles(bold: true)),
@@ -391,10 +349,12 @@ class PrintService {
       ]);
     }
 
-    bytes += generator.row([
-      PosColumn(text: 'Tax (GST)', width: 6),
-      PosColumn(text: sale.tax.toStringAsFixed(2), width: 6, styles: const PosStyles(align: PosAlign.right)),
-    ]);
+    if (gstEnabled) {
+      bytes += generator.row([
+        PosColumn(text: 'Tax (GST)', width: 6),
+        PosColumn(text: sale.tax.toStringAsFixed(2), width: 6, styles: const PosStyles(align: PosAlign.right)),
+      ]);
+    }
 
     bytes += generator.hr();
 
@@ -490,8 +450,11 @@ class PrintService {
     PaperSize paperSize = PaperSize.mm58,
   }) async {
     try {
-      // Connect to device
-      await device.connect();
+      // Check if already connected, if not connect
+      final connectionState = await device.connectionState.first;
+      if (connectionState != BluetoothConnectionState.connected) {
+        await device.connect(timeout: const Duration(seconds: 5));
+      }
 
       // Generate receipt bytes
       final bytes = await generateThermalReceipt(sale, customer, paperSize: paperSize);
@@ -504,13 +467,17 @@ class PrintService {
         if (printed) break;
         for (BluetoothCharacteristic characteristic in service.characteristics) {
           if (characteristic.properties.write) {
-            // Split data into chunks (some printers have MTU limitations)
-            const chunkSize = 20;
+            // Split data into larger chunks for faster printing
+            // Most modern Bluetooth printers support 512 bytes
+            const chunkSize = 512;
             for (int i = 0; i < bytes.length; i += chunkSize) {
               final end = (i + chunkSize < bytes.length) ? i + chunkSize : bytes.length;
               final chunk = bytes.sublist(i, end);
               await characteristic.write(chunk, withoutResponse: true);
-              await Future.delayed(const Duration(milliseconds: 50));
+              // Small delay to prevent buffer overflow, much faster than 50ms
+              if (i + chunkSize < bytes.length) {
+                await Future.delayed(const Duration(milliseconds: 5));
+              }
             }
             printed = true;
             break;

@@ -6,6 +6,7 @@ import '../models/customer.dart';
 import '../models/sale.dart';
 import '../services/sales_service.dart';
 import '../services/print_service.dart';
+import '../services/settings_service.dart';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 
 class BillPreviewScreen extends StatefulWidget {
@@ -35,15 +36,28 @@ class BillPreviewScreen extends StatefulWidget {
 class _BillPreviewScreenState extends State<BillPreviewScreen> {
   final SalesService _salesService = SalesService();
   final PrintService _printService = PrintService();
+  final SettingsService _settingsService = SettingsService();
   Sale? _savedSale;
   bool _isSaving = false;
   bool _isPrinting = false;
   bool _showThermalPreview = true; // Default to thermal preview
+  bool _gstEnabled = true; // Default to true
+  BluetoothDevice? _cachedPrinter; // Cache the printer device
 
   @override
   void initState() {
     super.initState();
+    _loadSettings();
     _saveSale();
+  }
+
+  Future<void> _loadSettings() async {
+    final gstEnabled = await _settingsService.isGSTEnabled();
+    if (mounted) {
+      setState(() {
+        _gstEnabled = gstEnabled;
+      });
+    }
   }
 
   Future<void> _saveSale() async {
@@ -100,35 +114,37 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
     }
   }
 
-  // Future<void> _printPDF() async {
-  //   if (_savedSale == null) return;
+  Future<void> _printPDF() async {
+    if (_savedSale == null) return;
 
-  //   setState(() => _isPrinting = true);
+    setState(() => _isPrinting = true);
 
-  //   try {
-  //     await _printService.printInvoice(_savedSale!, widget.customer);
+    try {
+      await _printService.printInvoice(_savedSale!, widget.customer);
 
-  //     if (mounted) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         const SnackBar(
-  //           content: Text('Opening print preview...'),
-  //           backgroundColor: Colors.green,
-  //         ),
-  //       );
-  //     }
-  //   } catch (e) {
-  //     if (mounted) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(
-  //           content: Text('Error printing: $e'),
-  //           backgroundColor: Colors.red,
-  //         ),
-  //       );
-  //     }
-  //   } finally {
-  //     setState(() => _isPrinting = false);
-  //   }
-  // }
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Opening print preview...'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error printing: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isPrinting = false);
+      }
+    }
+  }
 
   Future<void> _printThermal() async {
     if (_savedSale == null) return;
@@ -158,49 +174,56 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
 
       BluetoothDevice? selectedPrinter;
 
-      // First, check in connected devices
-      final connectedDevices = FlutterBluePlus.connectedDevices;
-      try {
-        selectedPrinter = connectedDevices.firstWhere(
-          (device) => device.remoteId.toString() == savedPrinterId,
-        );
-      } catch (e) {
-        // Not in connected devices, need to scan
-      }
-
-      // If not found in connected devices, scan for it
-      if (selectedPrinter == null) {
-        if (!mounted) return;
-
-        // Show scanning indicator
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Searching for saved printer...'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-
-        final printers = await _printService.findBluetoothPrinters();
-
-        if (!mounted) return;
-
-        // Try to find the saved printer in scan results
+      // Check if we have cached printer and it matches saved ID
+      if (_cachedPrinter != null && _cachedPrinter!.remoteId.toString() == savedPrinterId) {
+        selectedPrinter = _cachedPrinter;
+      } else {
+        // Not cached, check in connected devices first
+        final connectedDevices = FlutterBluePlus.connectedDevices;
         try {
-          selectedPrinter = printers.firstWhere(
+          selectedPrinter = connectedDevices.firstWhere(
             (device) => device.remoteId.toString() == savedPrinterId,
           );
+          _cachedPrinter = selectedPrinter; // Cache it for next time
         } catch (e) {
-          // Saved printer not found
-          setState(() => _isPrinting = false);
+          // Not in connected devices, need to scan (this is slow)
+        }
+
+        // If not found in connected devices, scan for it
+        if (selectedPrinter == null) {
+          if (!mounted) return;
+
+          // Show scanning indicator
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(
-                  'Saved printer not found. Please make sure your printer is turned on and go to Printer Settings to re-select it.'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 5),
+              content: Text('Searching for printer...'),
+              duration: Duration(seconds: 2),
             ),
           );
-          return;
+
+          final printers = await _printService.findBluetoothPrinters();
+
+          if (!mounted) return;
+
+          // Try to find the saved printer in scan results
+          try {
+            selectedPrinter = printers.firstWhere(
+              (device) => device.remoteId.toString() == savedPrinterId,
+            );
+            _cachedPrinter = selectedPrinter; // Cache it for next time
+          } catch (e) {
+            // Saved printer not found
+            setState(() => _isPrinting = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    'Printer not found. Please turn on your printer and try again.'),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 4),
+              ),
+            );
+            return;
+          }
         }
       }
 
@@ -208,6 +231,18 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
       final savedPaperSizeStr = prefs.getString('paper_size') ?? '58mm';
       final paperSize =
           savedPaperSizeStr == '80mm' ? PaperSize.mm80 : PaperSize.mm58;
+
+      // Ensure we have a valid printer before printing
+      if (selectedPrinter == null) {
+        setState(() => _isPrinting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Unable to connect to printer'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
 
       // Print to thermal printer
       await _printService.printToBluetoothPrinter(
@@ -346,25 +381,6 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
 
                 const Divider(thickness: 1, color: Colors.black),
 
-                // Customer Info
-                Text(
-                  'Customer: ${widget.customer?.name ?? 'Walk-in'}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontFamily: 'Courier',
-                  ),
-                ),
-                if (widget.customer?.phone != null)
-                  Text(
-                    'Phone: ${widget.customer!.phone}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontFamily: 'Courier',
-                    ),
-                  ),
-
-                const Divider(thickness: 1, color: Colors.black),
-
                 // Items Header
                 const Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -460,7 +476,8 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
                 _buildTotalRow('Subtotal', widget.subtotal),
                 if (widget.discount > 0)
                   _buildTotalRow('Discount', -widget.discount),
-                _buildTotalRow('Tax (GST)', widget.tax),
+                if (_gstEnabled)
+                  _buildTotalRow('Tax (GST)', widget.tax),
 
                 const Divider(thickness: 2, color: Colors.black),
 
@@ -682,39 +699,10 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
                                   ),
                                   const SizedBox(height: 24),
 
-                                  // Customer Info
+                                  // Payment Method
                                   Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            'Bill To:',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            widget.customer?.name ??
-                                                'Walk-in Customer',
-                                            style:
-                                                const TextStyle(fontSize: 14),
-                                          ),
-                                          if (widget.customer?.phone != null)
-                                            Text(
-                                              widget.customer!.phone!,
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey.shade600,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
                                       Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.end,
@@ -847,24 +835,26 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.end,
-                                        children: [
-                                          const SizedBox(
-                                            width: 150,
-                                            child: Text('Tax (GST):'),
-                                          ),
-                                          SizedBox(
-                                            width: 120,
-                                            child: Text(
-                                              '₹${widget.tax.toStringAsFixed(2)}',
-                                              textAlign: TextAlign.right,
+                                      if (_gstEnabled)
+                                        const SizedBox(height: 8),
+                                      if (_gstEnabled)
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.end,
+                                          children: [
+                                            const SizedBox(
+                                              width: 150,
+                                              child: Text('Tax (GST):'),
                                             ),
-                                          ),
-                                        ],
-                                      ),
+                                            SizedBox(
+                                              width: 120,
+                                              child: Text(
+                                                '₹${widget.tax.toStringAsFixed(2)}',
+                                                textAlign: TextAlign.right,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       const Divider(height: 24),
                                       Row(
                                         mainAxisAlignment:
@@ -934,14 +924,38 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
                       Expanded(
                         child: OutlinedButton.icon(
                           icon: const Icon(Icons.arrow_back),
-                          label: const Text('Back to POS'),
+                          label: const Text('Back'),
                           onPressed: () => Navigator.pop(context),
                           style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(12),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: _isPrinting
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.picture_as_pdf),
+                          label: Text(_isPrinting ? 'Printing...' : 'PDF'),
+                          onPressed: _isPrinting || _savedSale == null
+                              ? null
+                              : _printPDF,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.all(12),
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: ElevatedButton.icon(
                           icon: _isPrinting
@@ -959,7 +973,7 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
                               ? null
                               : _printThermal,
                           style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(12),
                             backgroundColor: Colors.blue,
                             foregroundColor: Colors.white,
                           ),

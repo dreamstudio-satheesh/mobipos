@@ -332,6 +332,20 @@ class ProductService {
     ''', [quantity, DateTime.now().toIso8601String(), variantId]);
   }
 
+  Future<void> updateVariantPrice(int variantId, double price, double costPrice) async {
+    final db = await _dbHelper.database;
+    await db.update(
+      'product_variants',
+      {
+        'price': price,
+        'cost_price': costPrice,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [variantId],
+    );
+  }
+
   // Private helper to get variants by product ID
   Future<List<ProductVariant>> _getVariantsByProductId(
       Database db, int productId) async {

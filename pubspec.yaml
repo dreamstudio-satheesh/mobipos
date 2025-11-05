@@ -66,9 +66,11 @@ dependencies:
   # Utils
   uuid: ^4.3.3
   logger: ^2.0.2+1
+  path: ^1.9.0
 
   # Image
   image_picker: ^1.0.7
+  image_cropper: ^8.0.2
   image: ^4.1.7
 
 dev_dependencies:

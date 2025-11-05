@@ -20,6 +20,7 @@ class _POSScreenState extends State<POSScreen> {
   final SettingsService _settingsService = SettingsService();
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _barcodeController = TextEditingController();
+  final TextEditingController _discountController = TextEditingController(text: '0');
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   List<Product> _products = [];
@@ -30,6 +31,7 @@ class _POSScreenState extends State<POSScreen> {
   bool _loadingCategories = false;
   int? _selectedCategoryId;
   bool _gstEnabled = true;
+  double _discount = 0.0;
 
   @override
   void initState() {
@@ -71,6 +73,7 @@ class _POSScreenState extends State<POSScreen> {
   void dispose() {
     _searchController.dispose();
     _barcodeController.dispose();
+    _discountController.dispose();
     super.dispose();
   }
 
@@ -215,9 +218,11 @@ class _POSScreenState extends State<POSScreen> {
               if (price != null && price > 0) {
                 Navigator.pop(context, price);
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid price')),
-                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter a valid price')),
+                  );
+                }
               }
             },
             child: const Text('Update'),
@@ -248,7 +253,7 @@ class _POSScreenState extends State<POSScreen> {
   }
 
   double _calculateTotal() {
-    return _calculateSubtotal() + _calculateTax();
+    return _calculateSubtotal() - _discount + _calculateTax();
   }
 
   Future<void> _selectCustomer() async {
@@ -402,6 +407,7 @@ class _POSScreenState extends State<POSScreen> {
           paymentMethod: paymentMethod,
           subtotal: subtotal,
           tax: tax,
+          discount: _discount,
           total: total,
         ),
       ),
@@ -412,6 +418,8 @@ class _POSScreenState extends State<POSScreen> {
         setState(() {
           _cartItems.clear();
           _selectedCustomer = null;
+          _discount = 0.0;
+          _discountController.text = '0';
         });
       }
     });
@@ -527,11 +535,37 @@ class _POSScreenState extends State<POSScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Discount:'),
+                      SizedBox(
+                        width: 100,
+                        child: TextField(
+                          controller: _discountController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          textAlign: TextAlign.right,
+                          decoration: const InputDecoration(
+                            prefixText: '₹',
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (value) {
+                            setState(() {
+                              _discount = double.tryParse(value) ?? 0.0;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   if (_gstEnabled)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Tax (18%):'),
+                        const Text('Tax (5%):'),
                         Text('₹${_calculateTax().toStringAsFixed(2)}'),
                       ],
                     ),

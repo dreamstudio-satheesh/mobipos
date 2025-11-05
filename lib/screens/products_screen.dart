@@ -241,13 +241,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   void _editProduct(Product product) async {
-    // For now, show a message that editing is not yet implemented
-    // TODO: Implement edit functionality in AddProductScreen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Edit functionality coming soon!'),
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddProductScreen(product: product),
       ),
     );
+
+    if (result == true) {
+      // Refresh product list after successful edit
+      _loadProducts(refresh: true);
+    }
   }
 
   Widget _buildProductCard(Product product) {

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
@@ -8,7 +9,9 @@ import '../models/product.dart';
 import '../services/product_service.dart';
 
 class AddProductScreen extends StatefulWidget {
-  const AddProductScreen({super.key});
+  final Product? product; // Optional product for editing
+
+  const AddProductScreen({super.key, this.product});
 
   @override
   State<AddProductScreen> createState() => _AddProductScreenState();
@@ -34,6 +37,22 @@ class _AddProductScreenState extends State<AddProductScreen> {
   void initState() {
     super.initState();
     _loadCategories();
+
+    // Pre-fill form if editing
+    if (widget.product != null) {
+      final product = widget.product!;
+      _nameController.text = product.name;
+      _unitController.text = product.unit;
+      _selectedCategoryId = product.categoryId;
+      _imagePath = product.imagePath;
+
+      // Pre-fill price and cost from first variant if available
+      if (product.variants != null && product.variants!.isNotEmpty) {
+        final variant = product.variants!.first;
+        _priceController.text = variant.price.toStringAsFixed(2);
+        _costController.text = variant.costPrice.toStringAsFixed(2);
+      }
+    }
   }
 
   @override
@@ -47,41 +66,67 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   Future<void> _pickImage() async {
     try {
+      // Step 1: Pick image from gallery
       final XFile? pickedFile = await _imagePicker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 500,
-        maxHeight: 500,
       );
 
-      if (pickedFile != null) {
-        // Read the image
-        final bytes = await File(pickedFile.path).readAsBytes();
-        final originalImage = img.decodeImage(bytes);
+      if (pickedFile == null) return;
 
-        if (originalImage != null) {
-          // Resize to 48x48
-          final resized = img.copyResize(originalImage, width: 48, height: 48);
+      // Step 2: Crop the image
+      final CroppedFile? croppedFile = await ImageCropper().cropImage(
+        sourcePath: pickedFile.path,
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1), // Square crop
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Product Image',
+            toolbarColor: Colors.blue,
+            toolbarWidgetColor: Colors.white,
+            initAspectRatio: CropAspectRatioPreset.square,
+            lockAspectRatio: true,
+            aspectRatioPresets: [
+              CropAspectRatioPreset.square,
+            ],
+          ),
+          IOSUiSettings(
+            title: 'Crop Product Image',
+            aspectRatioLockEnabled: true,
+            aspectRatioPresets: [
+              CropAspectRatioPreset.square,
+            ],
+          ),
+        ],
+      );
 
-          // Save to app directory
-          final appDir = await getApplicationDocumentsDirectory();
-          final fileName = '${DateTime.now().millisecondsSinceEpoch}.png';
-          final savePath = path.join(appDir.path, 'product_images', fileName);
+      if (croppedFile == null) return;
 
-          // Create directory if not exists
-          final dir = Directory(path.dirname(savePath));
-          if (!await dir.exists()) {
-            await dir.create(recursive: true);
-          }
+      // Step 3: Read and resize the cropped image to 48x48
+      final bytes = await File(croppedFile.path).readAsBytes();
+      final originalImage = img.decodeImage(bytes);
 
-          // Save the resized image
-          final savedFile = File(savePath);
-          await savedFile.writeAsBytes(img.encodePng(resized));
+      if (originalImage != null) {
+        // Resize to 48x48
+        final resized = img.copyResize(originalImage, width: 48, height: 48);
 
-          setState(() {
-            _imageFile = savedFile;
-            _imagePath = savePath;
-          });
+        // Save to app directory
+        final appDir = await getApplicationDocumentsDirectory();
+        final fileName = '${DateTime.now().millisecondsSinceEpoch}.png';
+        final savePath = path.join(appDir.path, 'product_images', fileName);
+
+        // Create directory if not exists
+        final dir = Directory(path.dirname(savePath));
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
         }
+
+        // Save the resized image
+        final savedFile = File(savePath);
+        await savedFile.writeAsBytes(img.encodePng(resized));
+
+        setState(() {
+          _imageFile = savedFile;
+          _imagePath = savePath;
+        });
       }
     } catch (e) {
       if (!mounted) return;
@@ -116,30 +161,67 @@ class _AddProductScreenState extends State<AddProductScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final productData = {
-        'name': _nameController.text.trim(),
-        'category_id': _selectedCategoryId,
-        'unit': _unitController.text.trim(),
-        'image_path': _imagePath,
-        'variants': [
-          {
-            'name': 'Default',
-            'price': double.parse(_priceController.text),
-            'cost_price': _costController.text.isEmpty ? 0.0 : double.parse(_costController.text),
-          }
-        ],
-      };
+      final isEditing = widget.product != null;
 
-      await _productService.createProduct(productData);
+      if (isEditing) {
+        // Update existing product
+        final updatedProduct = Product(
+          id: widget.product!.id,
+          shopId: widget.product!.shopId,
+          name: _nameController.text.trim(),
+          categoryId: _selectedCategoryId,
+          unit: _unitController.text.trim(),
+          imagePath: _imagePath,
+          isService: false,
+          createdAt: widget.product!.createdAt,
+          updatedAt: DateTime.now(),
+        );
 
-      if (!mounted) return;
+        await _productService.updateProduct(widget.product!.id, updatedProduct);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Product created successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+        // Update the variant price and cost
+        if (widget.product!.variants != null && widget.product!.variants!.isNotEmpty) {
+          final variantId = widget.product!.variants!.first.id;
+          final price = double.parse(_priceController.text);
+          final costPrice = _costController.text.isEmpty ? 0.0 : double.parse(_costController.text);
+          await _productService.updateVariantPrice(variantId, price, costPrice);
+        }
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Product updated successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        // Create new product
+        final productData = {
+          'name': _nameController.text.trim(),
+          'category_id': _selectedCategoryId,
+          'unit': _unitController.text.trim(),
+          'image_path': _imagePath,
+          'variants': [
+            {
+              'name': 'Default',
+              'price': double.parse(_priceController.text),
+              'cost_price': _costController.text.isEmpty ? 0.0 : double.parse(_costController.text),
+            }
+          ],
+        };
+
+        await _productService.createProduct(productData);
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Product created successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
 
       Navigator.pop(context, true); // Return true to indicate success
     } catch (e) {
@@ -160,9 +242,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isEditing = widget.product != null;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add Product'),
+        title: Text(isEditing ? 'Edit Product' : 'Add Product'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -277,7 +360,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       ),
                     const SizedBox(height: 8),
                     Text(
-                      'Image will be resized to 48x48 pixels',
+                      'Image will be cropped (square) and resized to 48x48 pixels',
                       style: TextStyle(
                         fontSize: 11,
                         color: Colors.grey.shade600,
@@ -373,9 +456,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
-                    : const Text(
-                        'SAVE PRODUCT',
-                        style: TextStyle(fontSize: 16),
+                    : Text(
+                        isEditing ? 'UPDATE PRODUCT' : 'SAVE PRODUCT',
+                        style: const TextStyle(fontSize: 16),
                       ),
               ),
             ],

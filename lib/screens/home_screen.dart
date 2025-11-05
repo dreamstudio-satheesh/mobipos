@@ -5,6 +5,7 @@ import 'categories_screen.dart';
 import 'pos_screen.dart';
 import 'printer_settings_screen.dart';
 import 'settings_screen.dart';
+import 'sales_history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -101,8 +102,11 @@ class _HomeScreenState extends State<HomeScreen> {
               title: const Text('Sales History'),
               onTap: () {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Coming soon!')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SalesHistoryScreen(),
+                  ),
                 );
               },
             ),
@@ -196,11 +200,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               _buildDashboardCard(
-                'Reports',
-                Icons.bar_chart,
+                'Sales History',
+                Icons.receipt_long,
                 Colors.orange,
-                () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Coming soon!')),
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SalesHistoryScreen(),
+                  ),
                 ),
               ),
               _buildDashboardCard(
