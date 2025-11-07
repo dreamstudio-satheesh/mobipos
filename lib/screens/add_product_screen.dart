@@ -46,6 +46,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
       _selectedCategoryId = product.categoryId;
       _imagePath = product.imagePath;
 
+      // Load existing image file if path exists
+      if (product.imagePath != null) {
+        final imageFile = File(product.imagePath!);
+        if (imageFile.existsSync()) {
+          _imageFile = imageFile;
+        }
+      }
+
       // Pre-fill price and cost from first variant if available
       if (product.variants != null && product.variants!.isNotEmpty) {
         final variant = product.variants!.first;
@@ -98,7 +106,19 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
       if (croppedFile == null) return;
 
-      // Step 3: Read and resize the cropped image to 48x48
+      // Step 3: Delete old image file if exists (when editing)
+      if (_imagePath != null) {
+        try {
+          final oldFile = File(_imagePath!);
+          if (await oldFile.exists()) {
+            await oldFile.delete();
+          }
+        } catch (e) {
+          // Ignore deletion errors
+        }
+      }
+
+      // Step 4: Read and resize the cropped image to 48x48
       final bytes = await File(croppedFile.path).readAsBytes();
       final originalImage = img.decodeImage(bytes);
 
@@ -330,6 +350,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                               borderRadius: BorderRadius.circular(4),
                               child: Image.file(
                                 _imageFile!,
+                                key: ValueKey(_imagePath),
                                 fit: BoxFit.cover,
                               ),
                             ),

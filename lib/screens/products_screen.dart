@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/product.dart';
 import '../services/product_service.dart';
@@ -322,18 +323,34 @@ class _ProductsScreenState extends State<ProductsScreen> {
         ),
         child: ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          leading: CircleAvatar(
-            radius: 28,
-            backgroundColor: Colors.blue.shade100,
-            child: Text(
-              product.name[0].toUpperCase(),
-              style: const TextStyle(
-                color: Colors.blue,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
-            ),
-          ),
+          leading: product.imagePath != null && File(product.imagePath!).existsSync()
+              ? Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: ClipOval(
+                    child: Image.file(
+                      File(product.imagePath!),
+                      key: ValueKey(product.imagePath),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                )
+              : CircleAvatar(
+                  radius: 28,
+                  backgroundColor: Colors.blue.shade100,
+                  child: Text(
+                    product.name[0].toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                    ),
+                  ),
+                ),
           title: Text(
             product.name,
             style: const TextStyle(

@@ -14,7 +14,7 @@ class POSScreen extends StatefulWidget {
   State<POSScreen> createState() => _POSScreenState();
 }
 
-class _POSScreenState extends State<POSScreen> {
+class _POSScreenState extends State<POSScreen> with WidgetsBindingObserver {
   final ProductService _productService = ProductService();
   final CustomerService _customerService = CustomerService();
   final SettingsService _settingsService = SettingsService();
@@ -36,9 +36,19 @@ class _POSScreenState extends State<POSScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadSettings();
     _loadCategories();
     _loadProducts();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Reload products when app resumes to foreground
+    if (state == AppLifecycleState.resumed) {
+      _loadProducts(categoryId: _selectedCategoryId);
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -71,6 +81,7 @@ class _POSScreenState extends State<POSScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     _barcodeController.dispose();
     _discountController.dispose();
@@ -791,6 +802,7 @@ class _POSScreenState extends State<POSScreen> {
                     borderRadius: BorderRadius.circular(4),
                     child: Image.file(
                       File(product.imagePath!),
+                      key: ValueKey(product.imagePath),
                       fit: BoxFit.cover,
                     ),
                   ),
