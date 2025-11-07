@@ -345,7 +345,7 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
           styles: const PosStyles(bold: true),
         ),
         PosColumn(
-          text: 'Rs.413.59',
+          text: '₹413.59',
           width: 6,
           styles: const PosStyles(bold: true, align: PosAlign.right),
         ),

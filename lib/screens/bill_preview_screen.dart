@@ -97,6 +97,13 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
           SnackBar(
             content: Text('Sale saved! Invoice: ${sale.invoiceNumber}'),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 1),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(
+              bottom: MediaQuery.of(context).size.height - 100,
+              left: 10,
+              right: 10,
+            ),
           ),
         );
       }
@@ -108,6 +115,13 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
           SnackBar(
             content: Text('Error saving sale: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(
+              bottom: MediaQuery.of(context).size.height - 100,
+              left: 10,
+              right: 10,
+            ),
           ),
         );
       }
@@ -125,9 +139,16 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Opening print preview...'),
+        SnackBar(
+          content: const Text('Opening print preview...'),
           backgroundColor: Colors.green,
+          duration: const Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(
+            bottom: MediaQuery.of(context).size.height - 100,
+            left: 10,
+            right: 10,
+          ),
         ),
       );
     } catch (e) {
@@ -137,6 +158,13 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
         SnackBar(
           content: Text('Error printing: $e'),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.only(
+            bottom: MediaQuery.of(context).size.height - 100,
+            left: 10,
+            right: 10,
+          ),
         ),
       );
     } finally {
@@ -162,11 +190,17 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
       if (savedPrinterId == null) {
         setState(() => _isPrinting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
+          SnackBar(
+            content: const Text(
                 'No default printer set. Please go to Printer Settings to select a printer.'),
             backgroundColor: Colors.orange,
-            duration: Duration(seconds: 4),
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(
+              bottom: MediaQuery.of(context).size.height - 100,
+              left: 10,
+              right: 10,
+            ),
           ),
         );
         return;
@@ -215,11 +249,17 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
             // Saved printer not found
             setState(() => _isPrinting = false);
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
+              SnackBar(
+                content: const Text(
                     'Printer not found. Please turn on your printer and try again.'),
                 backgroundColor: Colors.red,
-                duration: Duration(seconds: 4),
+                duration: const Duration(seconds: 3),
+                behavior: SnackBarBehavior.floating,
+                margin: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).size.height - 100,
+                  left: 10,
+                  right: 10,
+                ),
               ),
             );
             return;
@@ -236,9 +276,16 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
       if (selectedPrinter == null) {
         setState(() => _isPrinting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to connect to printer'),
+          SnackBar(
+            content: const Text('Unable to connect to printer'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(
+              bottom: MediaQuery.of(context).size.height - 100,
+              left: 10,
+              right: 10,
+            ),
           ),
         );
         return;
@@ -254,9 +301,16 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Printed successfully!'),
+          SnackBar(
+            content: const Text('Printed successfully!'),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 1),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(
+              bottom: MediaQuery.of(context).size.height - 100,
+              left: 10,
+              right: 10,
+            ),
           ),
         );
       }
@@ -266,6 +320,13 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
           SnackBar(
             content: Text('Error printing: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.only(
+              bottom: MediaQuery.of(context).size.height - 100,
+              left: 10,
+              right: 10,
+            ),
           ),
         );
       }
