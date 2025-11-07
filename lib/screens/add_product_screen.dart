@@ -73,10 +73,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
       if (pickedFile == null) return;
 
-      // Step 2: Crop the image
+      // Step 2: Let user crop the image
       final CroppedFile? croppedFile = await ImageCropper().cropImage(
         sourcePath: pickedFile.path,
-        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1), // Square crop
+        aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+        compressQuality: 100,
+        maxWidth: 800,
+        maxHeight: 800,
+        compressFormat: ImageCompressFormat.png,
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Crop Product Image',
@@ -84,16 +88,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
             toolbarWidgetColor: Colors.white,
             initAspectRatio: CropAspectRatioPreset.square,
             lockAspectRatio: true,
-            aspectRatioPresets: [
-              CropAspectRatioPreset.square,
-            ],
           ),
           IOSUiSettings(
             title: 'Crop Product Image',
             aspectRatioLockEnabled: true,
-            aspectRatioPresets: [
-              CropAspectRatioPreset.square,
-            ],
           ),
         ],
       );
@@ -360,7 +358,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       ),
                     const SizedBox(height: 8),
                     Text(
-                      'Image will be cropped (square) and resized to 48x48 pixels',
+                      'You can crop the image to square, then it will be resized to 48x48 pixels',
                       style: TextStyle(
                         fontSize: 11,
                         color: Colors.grey.shade600,
