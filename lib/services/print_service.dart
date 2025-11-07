@@ -536,9 +536,9 @@ class PrintService {
     final storeInfo = await _settingsService.getStoreInfo();
     final gstEnabled = await _settingsService.isGSTEnabled();
 
-    // Paper width in pixels - increased for better readability
-    // 58mm = 576px (1.5x larger), 80mm = 832px (1.5x larger)
-    final int width = paperSize == PaperSize.mm58 ? 576 : 832;
+    // Paper width in pixels - optimized for speed and quality
+    // 58mm = 384px (standard), 80mm = 576px (standard)
+    final int width = paperSize == PaperSize.mm58 ? 384 : 576;
 
     // Create a custom painter for the receipt
     final recorder = ui.PictureRecorder();
@@ -546,9 +546,9 @@ class PrintService {
 
     // White background
     final paint = Paint()..color = Colors.white;
-    canvas.drawRect(Rect.fromLTWH(0, 0, width.toDouble(), 3000), paint);
+    canvas.drawRect(Rect.fromLTWH(0, 0, width.toDouble(), 2500), paint);
 
-    double yOffset = 30;
+    double yOffset = 20;
     final textPainter = TextPainter(textDirection: ui.TextDirection.ltr);
 
     // Helper function to draw text
@@ -567,37 +567,37 @@ class PrintService {
           height: doubleHeight ? 2.0 : 1.2,
         ),
       );
-      textPainter.layout(maxWidth: width - 40);
+      textPainter.layout(maxWidth: width - 20);
 
-      double xOffset = 20;
+      double xOffset = 10;
       if (align == TextAlign.center) {
         xOffset = (width - textPainter.width) / 2;
       } else if (align == TextAlign.right) {
-        xOffset = width - textPainter.width - 20;
+        xOffset = width - textPainter.width - 10;
       }
 
       textPainter.paint(canvas, Offset(xOffset, yOffset));
-      yOffset += textPainter.height + 8;
+      yOffset += textPainter.height + 4;
     }
 
     // Helper function to draw line
     void drawLine() {
       final linePaint = Paint()
         ..color = Colors.black
-        ..strokeWidth = 2;
+        ..strokeWidth = 1;
       canvas.drawLine(
-        Offset(20, yOffset),
-        Offset(width - 20, yOffset),
+        Offset(10, yOffset),
+        Offset(width - 10, yOffset),
         linePaint,
       );
-      yOffset += 15;
+      yOffset += 8;
     }
 
     // Store name
     if (storeInfo['storeName'] != null && storeInfo['storeName']!.isNotEmpty) {
       drawText(
         storeInfo['storeName']!,
-        fontSize: 36,
+        fontSize: 24,
         fontWeight: FontWeight.bold,
         align: TextAlign.center,
       );
@@ -605,32 +605,32 @@ class PrintService {
 
     // Store address
     if (storeInfo['addressLine1'] != null && storeInfo['addressLine1']!.isNotEmpty) {
-      drawText(storeInfo['addressLine1']!, fontSize: 18, align: TextAlign.center);
+      drawText(storeInfo['addressLine1']!, fontSize: 14, align: TextAlign.center);
     }
     if (storeInfo['addressLine2'] != null && storeInfo['addressLine2']!.isNotEmpty) {
-      drawText(storeInfo['addressLine2']!, fontSize: 18, align: TextAlign.center);
+      drawText(storeInfo['addressLine2']!, fontSize: 14, align: TextAlign.center);
     }
     if (storeInfo['phone'] != null && storeInfo['phone']!.isNotEmpty) {
-      drawText('Phone: ${storeInfo['phone']}', fontSize: 18, align: TextAlign.center);
+      drawText('Phone: ${storeInfo['phone']}', fontSize: 14, align: TextAlign.center);
     }
     if (storeInfo['gstin'] != null && storeInfo['gstin']!.isNotEmpty) {
-      drawText('GSTIN: ${storeInfo['gstin']}', fontSize: 18, align: TextAlign.center);
+      drawText('GSTIN: ${storeInfo['gstin']}', fontSize: 14, align: TextAlign.center);
     }
 
     drawLine();
 
     // Invoice details
-    drawText('Invoice: ${sale.invoiceNumber}', fontSize: 20, fontWeight: FontWeight.bold);
-    drawText(DateFormat('dd/MM/yyyy hh:mm a').format(sale.saleDate), fontSize: 18);
+    drawText('Invoice: ${sale.invoiceNumber}', fontSize: 15, fontWeight: FontWeight.bold);
+    drawText(DateFormat('dd/MM/yyyy hh:mm a').format(sale.saleDate), fontSize: 13);
 
     if (customer != null) {
-      drawText('Customer: ${customer.name}', fontSize: 18);
+      drawText('Customer: ${customer.name}', fontSize: 13);
     }
 
     drawLine();
 
     // Items header
-    yOffset += 10;
+    yOffset += 5;
     final headerPainter = TextPainter(textDirection: ui.TextDirection.ltr);
     headerPainter.text = TextSpan(
       children: [
@@ -638,20 +638,20 @@ class PrintService {
           text: 'Item',
           style: TextStyle(
             color: Colors.black,
-            fontSize: 20,
+            fontSize: 14,
             fontWeight: FontWeight.bold,
           ),
         ),
       ],
     );
     headerPainter.layout();
-    headerPainter.paint(canvas, Offset(20, yOffset));
+    headerPainter.paint(canvas, Offset(10, yOffset));
 
     headerPainter.text = TextSpan(
       text: 'Qty',
       style: TextStyle(
         color: Colors.black,
-        fontSize: 20,
+        fontSize: 14,
         fontWeight: FontWeight.bold,
       ),
     );
@@ -662,15 +662,15 @@ class PrintService {
       text: 'Total',
       style: TextStyle(
         color: Colors.black,
-        fontSize: 20,
+        fontSize: 14,
         fontWeight: FontWeight.bold,
       ),
     );
     headerPainter.layout();
     final totalWidth = headerPainter.width;
-    headerPainter.paint(canvas, Offset(width - totalWidth - 20, yOffset));
+    headerPainter.paint(canvas, Offset(width - totalWidth - 10, yOffset));
 
-    yOffset += 20;
+    yOffset += 18;
     drawLine();
 
     // Items
@@ -681,18 +681,18 @@ class PrintService {
           text: item.productName,
           style: TextStyle(
             color: Colors.black,
-            fontSize: 18,
+            fontSize: 13,
           ),
         );
         textPainter.layout(maxWidth: width * 0.55);
-        textPainter.paint(canvas, Offset(20, yOffset));
+        textPainter.paint(canvas, Offset(10, yOffset));
 
         // Quantity
         textPainter.text = TextSpan(
           text: '${item.quantity}',
           style: TextStyle(
             color: Colors.black,
-            fontSize: 18,
+            fontSize: 13,
           ),
         );
         textPainter.layout();
@@ -704,13 +704,13 @@ class PrintService {
           text: totalText,
           style: TextStyle(
             color: Colors.black,
-            fontSize: 18,
+            fontSize: 13,
           ),
         );
         textPainter.layout();
-        textPainter.paint(canvas, Offset(width - textPainter.width - 20, yOffset));
+        textPainter.paint(canvas, Offset(width - textPainter.width - 10, yOffset));
 
-        yOffset += textPainter.height + 12;
+        yOffset += textPainter.height + 6;
       }
     }
 
@@ -722,25 +722,25 @@ class PrintService {
         text: label,
         style: TextStyle(
           color: Colors.black,
-          fontSize: bold ? 26 : 20,
+          fontSize: bold ? 18 : 15,
           fontWeight: bold ? FontWeight.bold : FontWeight.normal,
         ),
       );
       textPainter.layout();
-      textPainter.paint(canvas, Offset(20, yOffset));
+      textPainter.paint(canvas, Offset(10, yOffset));
 
       textPainter.text = TextSpan(
         text: value,
         style: TextStyle(
           color: Colors.black,
-          fontSize: bold ? 26 : 20,
+          fontSize: bold ? 18 : 15,
           fontWeight: bold ? FontWeight.bold : FontWeight.normal,
         ),
       );
       textPainter.layout();
-      textPainter.paint(canvas, Offset(width - textPainter.width - 20, yOffset));
+      textPainter.paint(canvas, Offset(width - textPainter.width - 10, yOffset));
 
-      yOffset += textPainter.height + 12;
+      yOffset += textPainter.height + 6;
     }
 
     drawRow('Subtotal', sale.subtotal.toStringAsFixed(2));
@@ -760,15 +760,15 @@ class PrintService {
     drawLine();
 
     // Payment method
-    drawText('Payment: ${sale.paymentMethod}', fontSize: 20, align: TextAlign.center);
+    drawText('Payment: ${sale.paymentMethod}', fontSize: 14, align: TextAlign.center);
 
     drawLine();
 
     // Footer
-    drawText('Thank you for your business!', fontSize: 22, fontWeight: FontWeight.bold, align: TextAlign.center);
-    drawText('Visit again!', fontSize: 18, align: TextAlign.center);
+    drawText('Thank you for your business!', fontSize: 15, fontWeight: FontWeight.bold, align: TextAlign.center);
+    drawText('Visit again!', fontSize: 13, align: TextAlign.center);
 
-    yOffset += 30;
+    yOffset += 20;
 
     // End recording
     final picture = recorder.endRecording();
@@ -851,10 +851,8 @@ class PrintService {
               final end = (i + chunkSize < bytes.length) ? i + chunkSize : bytes.length;
               final chunk = bytes.sublist(i, end);
               await characteristic.write(chunk, withoutResponse: true);
-              // Small delay to prevent buffer overflow
-              if (i + chunkSize < bytes.length) {
-                await Future.delayed(const Duration(milliseconds: 10));
-              }
+              // Delay to prevent buffer overflow and printer getting stuck
+              await Future.delayed(const Duration(milliseconds: 15));
             }
             printed = true;
             break;

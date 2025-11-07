@@ -291,8 +291,8 @@ class _BillPreviewScreenState extends State<BillPreviewScreen> {
         return;
       }
 
-      // Print to thermal printer using image rendering (supports UTF-8 fonts like Tamil)
-      await _printService.printReceiptAsImage(
+      // Print to thermal printer using fast text-based ESC/POS commands
+      await _printService.printToBluetoothPrinter(
         selectedPrinter,
         _savedSale!,
         widget.customer,
