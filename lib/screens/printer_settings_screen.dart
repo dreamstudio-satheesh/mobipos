@@ -368,14 +368,18 @@ class _PrinterSettingsScreenState extends State<PrinterSettingsScreen> {
         for (BluetoothCharacteristic characteristic
             in service.characteristics) {
           if (characteristic.properties.write) {
-            // Split data into chunks
-            const chunkSize = 20;
+            // Split data into smaller chunks (200 bytes to be safe with most BLE devices)
+            // Some devices have MTU limits as low as 237 bytes
+            const chunkSize = 200;
             for (int i = 0; i < bytes.length; i += chunkSize) {
               final end =
                   (i + chunkSize < bytes.length) ? i + chunkSize : bytes.length;
               final chunk = bytes.sublist(i, end);
               await characteristic.write(chunk, withoutResponse: true);
-              await Future.delayed(const Duration(milliseconds: 50));
+              // Small delay to prevent buffer overflow
+              if (i + chunkSize < bytes.length) {
+                await Future.delayed(const Duration(milliseconds: 10));
+              }
             }
             printed = true;
             break;

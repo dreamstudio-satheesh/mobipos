@@ -1,4 +1,7 @@
 import 'dart:typed_data';
+import 'dart:ui' as ui;
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -6,6 +9,7 @@ import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:image/image.dart' as img;
 import '../models/sale.dart';
 import '../models/customer.dart';
 import 'settings_service.dart';
@@ -99,8 +103,8 @@ class PrintService {
                   return [
                     item.productName,
                     '${item.quantity}',
-                    'Rs.${item.unitPrice.toStringAsFixed(2)}',
-                    'Rs.${item.total.toStringAsFixed(2)}',
+                    '₹${item.unitPrice.toStringAsFixed(2)}',
+                    '₹${item.total.toStringAsFixed(2)}',
                   ];
                 }).toList() ?? [],
               ),
@@ -122,7 +126,7 @@ class PrintService {
                         pw.SizedBox(
                           width: 100,
                           child: pw.Text(
-                            'Rs.${sale.subtotal.toStringAsFixed(2)}',
+                            '₹${sale.subtotal.toStringAsFixed(2)}',
                             textAlign: pw.TextAlign.right,
                           ),
                         ),
@@ -140,7 +144,7 @@ class PrintService {
                           pw.SizedBox(
                             width: 100,
                             child: pw.Text(
-                              '-Rs.${sale.discount.toStringAsFixed(2)}',
+                              '-₹${sale.discount.toStringAsFixed(2)}',
                               textAlign: pw.TextAlign.right,
                             ),
                           ),
@@ -159,7 +163,7 @@ class PrintService {
                           pw.SizedBox(
                             width: 100,
                             child: pw.Text(
-                              'Rs.${sale.tax.toStringAsFixed(2)}',
+                              '₹${sale.tax.toStringAsFixed(2)}',
                               textAlign: pw.TextAlign.right,
                             ),
                           ),
@@ -182,7 +186,7 @@ class PrintService {
                         pw.SizedBox(
                           width: 100,
                           child: pw.Text(
-                            'Rs.${sale.total.toStringAsFixed(2)}',
+                            '₹${sale.total.toStringAsFixed(2)}',
                             textAlign: pw.TextAlign.right,
                             style: pw.TextStyle(
                               fontSize: 16,
@@ -365,7 +369,7 @@ class PrintService {
         styles: const PosStyles(bold: true),
       ),
       PosColumn(
-        text: 'Rs.${sale.total.toStringAsFixed(2)}',
+        text: '₹${sale.total.toStringAsFixed(2)}',
         width: 6,
         styles: const PosStyles(
           bold: true,
@@ -467,16 +471,16 @@ class PrintService {
         if (printed) break;
         for (BluetoothCharacteristic characteristic in service.characteristics) {
           if (characteristic.properties.write) {
-            // Split data into larger chunks for faster printing
-            // Most modern Bluetooth printers support 512 bytes
-            const chunkSize = 512;
+            // Split data into smaller chunks (200 bytes to be safe with most BLE devices)
+            // Some devices have MTU limits as low as 237 bytes
+            const chunkSize = 200;
             for (int i = 0; i < bytes.length; i += chunkSize) {
               final end = (i + chunkSize < bytes.length) ? i + chunkSize : bytes.length;
               final chunk = bytes.sublist(i, end);
               await characteristic.write(chunk, withoutResponse: true);
-              // Small delay to prevent buffer overflow, much faster than 50ms
+              // Small delay to prevent buffer overflow
               if (i + chunkSize < bytes.length) {
-                await Future.delayed(const Duration(milliseconds: 5));
+                await Future.delayed(const Duration(milliseconds: 10));
               }
             }
             printed = true;
@@ -521,5 +525,346 @@ class PrintService {
     }
 
     return lines;
+  }
+
+  // Generate receipt as image for UTF-8 support (Tamil, Hindi, etc.)
+  Future<ui.Image> generateReceiptImage(
+    Sale sale,
+    Customer? customer, {
+    PaperSize paperSize = PaperSize.mm58,
+  }) async {
+    final storeInfo = await _settingsService.getStoreInfo();
+    final gstEnabled = await _settingsService.isGSTEnabled();
+
+    // Paper width in pixels (58mm ~= 384px, 80mm ~= 576px at 203dpi)
+    final int width = paperSize == PaperSize.mm58 ? 384 : 576;
+
+    // Create a custom painter for the receipt
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+
+    // White background
+    final paint = Paint()..color = Colors.white;
+    canvas.drawRect(Rect.fromLTWH(0, 0, width.toDouble(), 2000), paint);
+
+    double yOffset = 20;
+    final textPainter = TextPainter(textDirection: ui.TextDirection.ltr);
+
+    // Helper function to draw text
+    void drawText(String text, {
+      double fontSize = 12,
+      FontWeight fontWeight = FontWeight.normal,
+      TextAlign align = TextAlign.left,
+      bool doubleHeight = false,
+    }) {
+      textPainter.text = TextSpan(
+        text: text,
+        style: TextStyle(
+          color: Colors.black,
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          height: doubleHeight ? 2.0 : 1.2,
+        ),
+      );
+      textPainter.layout(maxWidth: width - 20);
+
+      double xOffset = 10;
+      if (align == TextAlign.center) {
+        xOffset = (width - textPainter.width) / 2;
+      } else if (align == TextAlign.right) {
+        xOffset = width - textPainter.width - 10;
+      }
+
+      textPainter.paint(canvas, Offset(xOffset, yOffset));
+      yOffset += textPainter.height + 5;
+    }
+
+    // Helper function to draw line
+    void drawLine() {
+      final linePaint = Paint()
+        ..color = Colors.black
+        ..strokeWidth = 1;
+      canvas.drawLine(
+        Offset(10, yOffset),
+        Offset(width - 10, yOffset),
+        linePaint,
+      );
+      yOffset += 10;
+    }
+
+    // Store name
+    if (storeInfo['storeName'] != null && storeInfo['storeName']!.isNotEmpty) {
+      drawText(
+        storeInfo['storeName']!,
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        align: TextAlign.center,
+      );
+    }
+
+    // Store address
+    if (storeInfo['addressLine1'] != null && storeInfo['addressLine1']!.isNotEmpty) {
+      drawText(storeInfo['addressLine1']!, fontSize: 11, align: TextAlign.center);
+    }
+    if (storeInfo['addressLine2'] != null && storeInfo['addressLine2']!.isNotEmpty) {
+      drawText(storeInfo['addressLine2']!, fontSize: 11, align: TextAlign.center);
+    }
+    if (storeInfo['phone'] != null && storeInfo['phone']!.isNotEmpty) {
+      drawText('Phone: ${storeInfo['phone']}', fontSize: 11, align: TextAlign.center);
+    }
+    if (storeInfo['gstin'] != null && storeInfo['gstin']!.isNotEmpty) {
+      drawText('GSTIN: ${storeInfo['gstin']}', fontSize: 11, align: TextAlign.center);
+    }
+
+    drawLine();
+
+    // Invoice details
+    drawText('Invoice: ${sale.invoiceNumber}', fontSize: 12, fontWeight: FontWeight.bold);
+    drawText(DateFormat('dd/MM/yyyy hh:mm a').format(sale.saleDate), fontSize: 11);
+
+    if (customer != null) {
+      drawText('Customer: ${customer.name}', fontSize: 11);
+    }
+
+    drawLine();
+
+    // Items header
+    yOffset += 5;
+    final headerPainter = TextPainter(textDirection: ui.TextDirection.ltr);
+    headerPainter.text = TextSpan(
+      children: [
+        TextSpan(
+          text: 'Item',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+    headerPainter.layout();
+    headerPainter.paint(canvas, Offset(10, yOffset));
+
+    headerPainter.text = TextSpan(
+      text: 'Qty',
+      style: TextStyle(
+        color: Colors.black,
+        fontSize: 11,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+    headerPainter.layout();
+    headerPainter.paint(canvas, Offset(width * 0.6, yOffset));
+
+    headerPainter.text = TextSpan(
+      text: 'Total',
+      style: TextStyle(
+        color: Colors.black,
+        fontSize: 11,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+    headerPainter.layout();
+    final totalWidth = headerPainter.width;
+    headerPainter.paint(canvas, Offset(width - totalWidth - 10, yOffset));
+
+    yOffset += 20;
+    drawLine();
+
+    // Items
+    if (sale.items != null) {
+      for (var item in sale.items!) {
+        // Product name
+        textPainter.text = TextSpan(
+          text: item.productName,
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 11,
+          ),
+        );
+        textPainter.layout(maxWidth: width * 0.55);
+        textPainter.paint(canvas, Offset(10, yOffset));
+
+        // Quantity
+        textPainter.text = TextSpan(
+          text: '${item.quantity}',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 11,
+          ),
+        );
+        textPainter.layout();
+        textPainter.paint(canvas, Offset(width * 0.6, yOffset));
+
+        // Total
+        final totalText = item.total.toStringAsFixed(2);
+        textPainter.text = TextSpan(
+          text: totalText,
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 11,
+          ),
+        );
+        textPainter.layout();
+        textPainter.paint(canvas, Offset(width - textPainter.width - 10, yOffset));
+
+        yOffset += textPainter.height + 8;
+      }
+    }
+
+    drawLine();
+
+    // Totals
+    void drawRow(String label, String value, {bool bold = false}) {
+      textPainter.text = TextSpan(
+        text: label,
+        style: TextStyle(
+          color: Colors.black,
+          fontSize: bold ? 14 : 12,
+          fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+        ),
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, Offset(10, yOffset));
+
+      textPainter.text = TextSpan(
+        text: value,
+        style: TextStyle(
+          color: Colors.black,
+          fontSize: bold ? 14 : 12,
+          fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+        ),
+      );
+      textPainter.layout();
+      textPainter.paint(canvas, Offset(width - textPainter.width - 10, yOffset));
+
+      yOffset += textPainter.height + 8;
+    }
+
+    drawRow('Subtotal', sale.subtotal.toStringAsFixed(2));
+
+    if (sale.discount > 0) {
+      drawRow('Discount', '-${sale.discount.toStringAsFixed(2)}');
+    }
+
+    if (gstEnabled) {
+      drawRow('Tax (GST)', sale.tax.toStringAsFixed(2));
+    }
+
+    drawLine();
+
+    drawRow('TOTAL', '₹${sale.total.toStringAsFixed(2)}', bold: true);
+
+    drawLine();
+
+    // Payment method
+    drawText('Payment: ${sale.paymentMethod}', fontSize: 12, align: TextAlign.center);
+
+    drawLine();
+
+    // Footer
+    drawText('Thank you for your business!', fontSize: 12, fontWeight: FontWeight.bold, align: TextAlign.center);
+    drawText('Visit again!', fontSize: 11, align: TextAlign.center);
+
+    yOffset += 20;
+
+    // End recording
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(width, yOffset.toInt());
+
+    return image;
+  }
+
+  // Convert UI Image to monochrome bitmap for thermal printing
+  Future<img.Image> _convertToMonochrome(ui.Image image) async {
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final bytes = byteData!.buffer.asUint8List();
+
+    // Create monochrome image
+    final monoImage = img.Image(width: image.width, height: image.height);
+
+    int index = 0;
+    for (int y = 0; y < image.height; y++) {
+      for (int x = 0; x < image.width; x++) {
+        final r = bytes[index++];
+        final g = bytes[index++];
+        final b = bytes[index++];
+        index++; // Skip alpha
+
+        // Convert to grayscale
+        final gray = (0.299 * r + 0.587 * g + 0.114 * b).toInt();
+
+        // Threshold to black/white (128 is middle threshold)
+        final bw = gray < 128 ? 0 : 255;
+
+        monoImage.setPixel(x, y, img.ColorRgb8(bw, bw, bw));
+      }
+    }
+
+    return monoImage;
+  }
+
+  // Print receipt as image to Bluetooth thermal printer
+  Future<void> printReceiptAsImage(
+    BluetoothDevice device,
+    Sale sale,
+    Customer? customer, {
+    PaperSize paperSize = PaperSize.mm58,
+  }) async {
+    try {
+      // Check if already connected, if not connect
+      final connectionState = await device.connectionState.first;
+      if (connectionState != BluetoothConnectionState.connected) {
+        await device.connect(timeout: const Duration(seconds: 5));
+      }
+
+      // Generate receipt image
+      final uiImage = await generateReceiptImage(sale, customer, paperSize: paperSize);
+      final monoImage = await _convertToMonochrome(uiImage);
+
+      // Generate ESC/POS commands
+      final profile = await CapabilityProfile.load();
+      final generator = Generator(paperSize, profile);
+      List<int> bytes = [];
+
+      // Print the image
+      bytes += generator.imageRaster(monoImage, align: PosAlign.center);
+
+      // Feed and cut
+      bytes += generator.feed(2);
+      bytes += generator.cut();
+
+      // Find print service and characteristic
+      List<BluetoothService> services = await device.discoverServices();
+
+      bool printed = false;
+      for (BluetoothService service in services) {
+        if (printed) break;
+        for (BluetoothCharacteristic characteristic in service.characteristics) {
+          if (characteristic.properties.write) {
+            // Split data into smaller chunks (200 bytes to be safe with most BLE devices)
+            // Some devices have MTU limits as low as 237 bytes
+            const chunkSize = 200;
+            for (int i = 0; i < bytes.length; i += chunkSize) {
+              final end = (i + chunkSize < bytes.length) ? i + chunkSize : bytes.length;
+              final chunk = bytes.sublist(i, end);
+              await characteristic.write(chunk, withoutResponse: true);
+              // Small delay to prevent buffer overflow
+              if (i + chunkSize < bytes.length) {
+                await Future.delayed(const Duration(milliseconds: 10));
+              }
+            }
+            printed = true;
+            break;
+          }
+        }
+      }
+
+      // Disconnect
+      await device.disconnect();
+    } catch (e) {
+      throw Exception('Error printing receipt as image: $e');
+    }
   }
 }
