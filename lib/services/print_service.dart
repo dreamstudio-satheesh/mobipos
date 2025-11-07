@@ -685,7 +685,7 @@ class PrintService {
           ),
         );
         textPainter.layout(maxWidth: width * 0.55);
-        textPainter.paint(canvas, Offset(10, yOffset));
+        textPainter.paint(canvas, Offset(20, yOffset));
 
         // Quantity
         textPainter.text = TextSpan(
@@ -708,7 +708,7 @@ class PrintService {
           ),
         );
         textPainter.layout();
-        textPainter.paint(canvas, Offset(width - textPainter.width - 10, yOffset));
+        textPainter.paint(canvas, Offset(width - textPainter.width - 20, yOffset));
 
         yOffset += textPainter.height + 12;
       }
@@ -727,7 +727,7 @@ class PrintService {
         ),
       );
       textPainter.layout();
-      textPainter.paint(canvas, Offset(10, yOffset));
+      textPainter.paint(canvas, Offset(20, yOffset));
 
       textPainter.text = TextSpan(
         text: value,
@@ -738,7 +738,7 @@ class PrintService {
         ),
       );
       textPainter.layout();
-      textPainter.paint(canvas, Offset(width - textPainter.width - 10, yOffset));
+      textPainter.paint(canvas, Offset(width - textPainter.width - 20, yOffset));
 
       yOffset += textPainter.height + 12;
     }
